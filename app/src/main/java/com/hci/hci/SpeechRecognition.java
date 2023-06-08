@@ -11,7 +11,7 @@ public class SpeechRecognition extends Application {
 
     @Override
     public void onCreate() {
-        SpeechUtility.createUtility(SpeechRecognition.this, "appid=add16bea");
+        SpeechUtility.createUtility(SpeechRecognition.this, "appid=56521e36");
         super.onCreate();
     }
 }

@@ -1,13 +1,12 @@
 package com.hci.hci;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -15,6 +14,10 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.iflytek.cloud.ErrorCode;
 import com.iflytek.cloud.InitListener;
@@ -25,13 +28,34 @@ import com.iflytek.cloud.SpeechRecognizer;
 import com.iflytek.cloud.ui.RecognizerDialog;
 import com.iflytek.cloud.ui.RecognizerDialogListener;
 
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Calendar;
+
+//
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
+import android.provider.AlarmClock;
+import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import android.os.Bundle;
+import android.provider.ContactsContract;
+import android.view.View;
+import android.widget.Button;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
@@ -46,11 +70,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private SharedPreferences mSharedPreferences;//缓存
 
     private String mEngineType = SpeechConstant.TYPE_CLOUD;// 引擎类型
-    private String language = "zh_cn";//识别语言
+    private String language = "en_us";//识别语言
 
     private TextView tvResult;//识别结果
     private Button btnStart;//开始识别
     private String resultType = "json";//结果内容数据格式
+
+    private List<PackageInfo> clockPackageInfos;//系统时钟软件
+    private static final int PERMISSION_REQUEST_CODE = 1001;
+
 
     /**
      * 初始化监听器。
@@ -139,7 +167,56 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         mIatResults.put(sn, text);
+        if(compare(text,"dial")){
+            // 声明要拨打的电话号码
+            String phoneNumber = "";
+            // 创建一个Intent对象
+            Intent intent = new Intent(Intent.ACTION_DIAL);
+            // 设置URI
+            intent.setData(Uri.parse("tel:" + phoneNumber));
+            // 启动拨号界面
+            startActivity(intent);
+        }
 
+        // 打开短信界面
+        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("sms:"));
+        startActivity(intent);
+
+        //
+        //Intent intent = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
+        //startActivityForResult(intent, 1);
+        
+        if(true) {
+            //获取当前时间
+            Calendar calendar = Calendar.getInstance();
+
+            // 设置闹钟时间为今天的19点
+            calendar.set(Calendar.HOUR_OF_DAY, 19);
+            calendar.set(Calendar.MINUTE, 0);
+
+            // 如果闹钟时间早于当前时间，则将闹钟时间设为明天的19点
+            if (calendar.getTimeInMillis() < System.currentTimeMillis()) {
+                calendar.add(Calendar.DAY_OF_YEAR, 1);
+            }
+
+            // 检查是否已经授予闹钟权限
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.SET_ALARM)
+                    != PackageManager.PERMISSION_GRANTED) {
+                // 如果没有授予权限，则申请权限
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.SET_ALARM},
+                        PERMISSION_REQUEST_CODE);
+            } else {
+                // 如果已经授予权限，则调用系统自带的闹钟软件设置闹钟
+                Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM)
+                        .putExtra(AlarmClock.EXTRA_HOUR, calendar.get(Calendar.HOUR_OF_DAY))
+                        .putExtra(AlarmClock.EXTRA_MINUTES, calendar.get(Calendar.MINUTE))
+                        .putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+                startActivity(intent);
+            }
+        }
+
+        //语音处理
         StringBuffer resultBuffer = new StringBuffer();
         for (String key : mIatResults.keySet()) {
             resultBuffer.append(mIatResults.get(key));
@@ -147,6 +224,46 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         tvResult.setText(resultBuffer.toString());//听写结果显示
 
     }
+
+    /* 相似性判断*/
+    public boolean compare(String sn, String command) {
+        if (sn.endsWith(".")){
+            sn = sn.substring(0, sn.length() - 1);
+        }
+        int n = sn.length(), m = command.length();
+        if (Math.abs(n - m) > 1) {
+            return false;
+        }
+        int i = 0, j = 0;
+        int count = 0;
+        while (i < n && j < m) {
+            char c1 = Character.toLowerCase(sn.charAt(i));
+            char c2 = Character.toLowerCase(command.charAt(j));
+            if (c1 != c2) {
+                if (++count > 1) {
+                    return false;
+                }
+                if (n > m) {
+                    i++;
+                } else if (n < m) {
+                    j++;
+                } else {
+                    i++;
+                    j++;
+                }
+            } else {
+                i++;
+                j++;
+            }
+        }
+        if (i < n || j < m) {
+            count++;
+        }
+        return true;
+    }
+
+
+
 
     /**
      * 参数设置
@@ -213,6 +330,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             ActivityCompat.requestPermissions(this, toApplyList.toArray(tmpList), 123);
         }
 
+
     }
 
 //    /**
@@ -243,7 +361,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mIatDialog = new RecognizerDialog(MainActivity.this, mInitListener);
         mSharedPreferences = getSharedPreferences("ASR",
                 Activity.MODE_PRIVATE);
-
 
     }
 
