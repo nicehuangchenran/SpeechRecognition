@@ -12,6 +12,7 @@ import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -179,42 +180,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         // 打开短信界面
-        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("sms:"));
-        startActivity(intent);
+        //Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("sms:"));
+        //startActivity(intent);
 
         //
         //Intent intent = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
         //startActivityForResult(intent, 1);
-        
-        if(true) {
-            //获取当前时间
-            Calendar calendar = Calendar.getInstance();
-
-            // 设置闹钟时间为今天的19点
-            calendar.set(Calendar.HOUR_OF_DAY, 19);
-            calendar.set(Calendar.MINUTE, 0);
-
-            // 如果闹钟时间早于当前时间，则将闹钟时间设为明天的19点
-            if (calendar.getTimeInMillis() < System.currentTimeMillis()) {
-                calendar.add(Calendar.DAY_OF_YEAR, 1);
-            }
-
-            // 检查是否已经授予闹钟权限
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.SET_ALARM)
-                    != PackageManager.PERMISSION_GRANTED) {
-                // 如果没有授予权限，则申请权限
-                ActivityCompat.requestPermissions(this,
-                        new String[]{Manifest.permission.SET_ALARM},
-                        PERMISSION_REQUEST_CODE);
-            } else {
-                // 如果已经授予权限，则调用系统自带的闹钟软件设置闹钟
-                Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM)
-                        .putExtra(AlarmClock.EXTRA_HOUR, calendar.get(Calendar.HOUR_OF_DAY))
-                        .putExtra(AlarmClock.EXTRA_MINUTES, calendar.get(Calendar.MINUTE))
-                        .putExtra(AlarmClock.EXTRA_SKIP_UI, true);
-                startActivity(intent);
-            }
-        }
 
         //语音处理
         StringBuffer resultBuffer = new StringBuffer();
@@ -350,6 +321,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        TextView text=findViewById(R.id.tv_result);
+        Button button=findViewById(R.id.btn_start);
+
         setContentView(R.layout.activity_main);
         tvResult = findViewById(R.id.tv_result);
         btnStart = findViewById(R.id.btn_start);
