@@ -13,6 +13,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -37,7 +39,19 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Calendar;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import androidx.appcompat.app.AppCompatActivity;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import okhttp3.*;
+
+import java.io.IOException;
 //
 import android.Manifest;
 import android.content.Intent;
@@ -61,7 +75,7 @@ import java.util.Calendar;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
     private static final String TAG = "MainActivity";
-
+    private static int counter = 0;
     private SpeechRecognizer mIat;// 语音听写对象
     private RecognizerDialog mIatDialog;// 语音听写UI
 
@@ -70,15 +84,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private SharedPreferences mSharedPreferences;//缓存
 
+    private TextView textView;
     private String mEngineType = SpeechConstant.TYPE_CLOUD;// 引擎类型
-    private String language = "en_us";//识别语言
+    private String language = "zh_cn";//识别语言
 
-    private TextView tvResult;//识别结果
+    private LinearLayout linearLayout;
+    private ScrollView tvResult;//识别结果
     private Button btnStart;//开始识别
     private String resultType = "json";//结果内容数据格式
 
     private List<PackageInfo> clockPackageInfos;//系统时钟软件
     private static final int PERMISSION_REQUEST_CODE = 1001;
+
+    private static final String API_URL = "https://api.openai.com/v1/chat/completions";
+    private static final String API_KEY = "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";
+
+    private OkHttpClient client = new OkHttpClient();
 
 
     /**
@@ -101,9 +122,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private RecognizerDialogListener mRecognizerDialogListener = new RecognizerDialogListener() {
         public void onResult(RecognizerResult results, boolean isLast) {
+            if (!isLast){
+                printResult(results);//结果数据解析
 
-            printResult(results);//结果数据解析
 
+            }
         }
 
         /**
@@ -131,7 +154,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             showMsg( "创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化" );
             return;
         }
-
         mIatResults.clear();//清除数据
         setParam(); // 设置参数
         mIatDialog.setListener(mRecognizerDialogListener);//设置监听
@@ -168,16 +190,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         mIatResults.put(sn, text);
-        if(compare(text,"dial")){
-            // 声明要拨打的电话号码
-            String phoneNumber = "";
-            // 创建一个Intent对象
-            Intent intent = new Intent(Intent.ACTION_DIAL);
-            // 设置URI
-            intent.setData(Uri.parse("tel:" + phoneNumber));
-            // 启动拨号界面
-            startActivity(intent);
-        }
+//        if(compare(text,"dial")){
+//            // 声明要拨打的电话号码
+//            String phoneNumber = "";
+//            // 创建一个Intent对象
+//            Intent intent = new Intent(Intent.ACTION_DIAL);
+//            // 设置URI
+//            intent.setData(Uri.parse("tel:" + phoneNumber));
+//            // 启动拨号界面
+//            startActivity(intent);
+//        }
 
         // 打开短信界面
         //Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("sms:"));
@@ -192,7 +214,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         for (String key : mIatResults.keySet()) {
             resultBuffer.append(mIatResults.get(key));
         }
-        tvResult.setText(resultBuffer.toString());//听写结果显示
+        textView = new TextView(this);
+        textView.setText(resultBuffer.toString());
+        sendGptRequest(resultBuffer.toString());
+        linearLayout.addView(textView);
+
+
 
     }
 
@@ -253,7 +280,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             String lag = mSharedPreferences.getString("iat_language_preference",
                     "mandarin");
             Log.e(TAG, "language:" + language);// 设置语言
-            mIat.setParameter(SpeechConstant.LANGUAGE, "en_us");
+            mIat.setParameter(SpeechConstant.LANGUAGE, "zh_cn");
             // 设置语言区域
             mIat.setParameter(SpeechConstant.ACCENT, lag);
         } else {
@@ -304,6 +331,54 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
+    private void sendGptRequest(String prompt) {
+        MediaType JSON = MediaType.get("application/json; charset=utf-8");
+        String json = "{"
+                + "\"model\":\"gpt-3.5-turbo\","
+                + "\"messages\":[{\"role\":\"user\", \"content\":\"" + prompt + "\"}],"
+                + "\"max_tokens\":640,"
+                + "\"temperature\":0.5"
+                + "}";
+
+        RequestBody body = RequestBody.create(json, JSON);
+        Request request = new Request.Builder()
+                .url(API_URL)
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .post(body)
+                .build();
+
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    throw new IOException("Unexpected code " + response);
+                } else {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                String responseBody = response.body().string();
+                                JSONObject jsonObject = new JSONObject(responseBody);
+                                JSONObject messageObject = jsonObject.getJSONArray("choices").getJSONObject(0).getJSONObject("message");
+                                String content = messageObject.getString("content");
+
+                                TextView gptResultView = new TextView(MainActivity.this);
+                                gptResultView.setText(content);
+                                linearLayout.addView(gptResultView);
+                            } catch (IOException | JSONException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
 //    /**
 //     * 权限申请回调，可以作进一步处理
 //     *
@@ -321,13 +396,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        TextView text=findViewById(R.id.tv_result);
+        ScrollView text=findViewById(R.id.tv_result);
         Button button=findViewById(R.id.btn_start);
 
+
         setContentView(R.layout.activity_main);
+        linearLayout = (LinearLayout) findViewById(R.id.linear_layout);
         tvResult = findViewById(R.id.tv_result);
         btnStart = findViewById(R.id.btn_start);
         btnStart.setOnClickListener(this);//实现点击监听
+
         initPermission();
         // 使用SpeechRecognizer对象，可根据回调消息自定义界面；
         mIat = SpeechRecognizer.createRecognizer(MainActivity.this, mInitListener);
