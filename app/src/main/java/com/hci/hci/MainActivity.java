@@ -97,7 +97,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
     private static final String API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String API_KEY = "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";
+    private static final String API_KEY = "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";
 
     private OkHttpClient client = new OkHttpClient();
 
@@ -395,12 +395,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
-        ScrollView text=findViewById(R.id.tv_result);
-        Button button=findViewById(R.id.btn_start);
-
-
         setContentView(R.layout.activity_main);
+        Button btn_intro=findViewById(R.id.btn_intro);
+        btn_intro.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v){
+                Intent i=new Intent(MainActivity.this,IntroActivity.class);
+                startActivity(i);
+
+            }
+        });
+
+        Button btn_list=findViewById(R.id.btn_list);
+        btn_list.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v){
+               Toast.makeText(MainActivity.this,"小组成员：焦骜、黄晨冉、赵一婷",Toast.LENGTH_SHORT).show();
+            }
+        });
+
         linearLayout = (LinearLayout) findViewById(R.id.linear_layout);
         tvResult = findViewById(R.id.tv_result);
         btnStart = findViewById(R.id.btn_start);
@@ -415,6 +430,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Activity.MODE_PRIVATE);
 
     }
+
+
 
 
 }
