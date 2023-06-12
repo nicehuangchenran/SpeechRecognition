@@ -71,6 +71,41 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import java.util.Calendar;
+import com.iflytek.cloud.SpeechConstant;
+import com.iflytek.cloud.SpeechUtility;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.MemoryFile;
+import android.text.Spannable;
+import android.text.SpannableStringBuilder;
+import android.text.style.BackgroundColorSpan;
+import android.util.Log;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.SeekBar;
+import android.widget.Spinner;
+import android.widget.Toast;
+
+import com.iflytek.cloud.ErrorCode;
+import com.iflytek.cloud.InitListener;
+import com.iflytek.cloud.SpeechConstant;
+import com.iflytek.cloud.SpeechError;
+import com.iflytek.cloud.SpeechEvent;
+import com.iflytek.cloud.SpeechSynthesizer;
+import com.iflytek.cloud.SynthesizerListener;
+import com.iflytek.cloud.msc.util.FileUtil;
+import com.iflytek.cloud.msc.util.log.DebugLog;
+
+import java.util.Vector;
+
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
@@ -391,10 +426,112 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //        // 此处为android 6.0以上动态授权的回调，用户自行实现。
 //
 //    }
+    private InitListener mTtsInitListener = new InitListener() {
+        @Override
+        public void onInit(int code) {
+            Log.i(TAG, "InitListener init() code = " + code);
+            if (code != ErrorCode.SUCCESS) {
+                showTip("初始化失败,错误码：" + code);
+            } else {
+                showTip("初始化成功");
+            }
+        }
+    };
+    private void showTip(String msg) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+    // 默认发音人
+    private String voicer = "xiaoyan";
+    // 引擎类型
+    private String hcrmEngineType = SpeechConstant.TYPE_CLOUD;
+    /**
+     * 参数设置
+     *
+     * @return
+     */
+    private void hcrsetParam() {
+        // 清空参数
+        mTts.setParameter(SpeechConstant.PARAMS, null);
+        // 根据合成引擎设置相应参数
+        if (mEngineType.equals(SpeechConstant.TYPE_CLOUD)) {
+            mTts.setParameter(SpeechConstant.ENGINE_TYPE, SpeechConstant.TYPE_CLOUD);
+            //支持实时音频返回，仅在synthesizeToUri条件下支持
+            mTts.setParameter(SpeechConstant.TTS_DATA_NOTIFY, "1");
+            // 设置在线合成发音人
+            mTts.setParameter(SpeechConstant.VOICE_NAME, voicer);
+        } else {
+            mTts.setParameter(SpeechConstant.ENGINE_TYPE, SpeechConstant.TYPE_LOCAL);
+            mTts.setParameter(SpeechConstant.VOICE_NAME, "");
+        }
+        // 设置播放合成音频打断音乐播放，默认为true
+        mTts.setParameter(SpeechConstant.KEY_REQUEST_FOCUS, "false");
+        // 设置音频保存路径，保存音频格式支持pcm、wav
+        mTts.setParameter(SpeechConstant.AUDIO_FORMAT, "pcm");
+        mTts.setParameter(SpeechConstant.TTS_AUDIO_PATH, getExternalFilesDir(null) + "/msc/tts.pcm");
+    }
 
+    String text = "富强、明主、文明、和谐、自由、平等、公正、法制、爱国、敬业、诚信、友善。";
+    /**
+     * 合成回调监听。
+     */
+    private SynthesizerListener mTtsListener = new SynthesizerListener() {
+        //开始播放
+        @Override
+        public void onSpeakBegin() {
 
+        }
+        //暂停播放
+        @Override
+        public void onSpeakPaused() {
+
+        }
+        //继续播放
+        @Override
+        public void onSpeakResumed() {
+
+        }
+        //合成进度
+        @Override
+        public void onBufferProgress(int percent, int beginPos, int endPos, String info) {
+
+        }
+        //播放进度
+        @Override
+        public void onSpeakProgress(int percent, int beginPos, int endPos) {
+
+        }
+        //播放完成
+        @Override
+        public void onCompleted(SpeechError error) {
+
+        }
+        //事件
+        @Override
+        public void onEvent(int eventType, int arg1, int arg2, Bundle obj) {
+
+        }
+    };
+
+    private SpeechSynthesizer mTts;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        //语言合成部分
+        SpeechUtility.createUtility(MainActivity.this, SpeechConstant.APPID +"=56978643");
+        // 初始化合成对象
+        mTts = SpeechSynthesizer.createSynthesizer(this, mTtsInitListener);
+        if (mTts == null) {
+            this.showTip("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
+            return;
+        }
+        //设置参数
+        hcrsetParam();
+        //开始合成播放
+        int code = mTts.startSpeaking(text, mTtsListener);
+        if (code != ErrorCode.SUCCESS) {
+            showTip("语音合成失败,错误码: " + code);
+        }
+        //语音合成部分
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
