@@ -132,9 +132,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
     private static final String API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String API_KEY = "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";
+    private static final String API_KEY = "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";
 
     private OkHttpClient client = new OkHttpClient();
+
 
 
     /**
@@ -224,17 +225,99 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             e.printStackTrace();
         }
 
+        String content;
         mIatResults.put(sn, text);
-//        if(compare(text,"dial")){
-//            // 声明要拨打的电话号码
-//            String phoneNumber = "";
-//            // 创建一个Intent对象
-//            Intent intent = new Intent(Intent.ACTION_DIAL);
-//            // 设置URI
-//            intent.setData(Uri.parse("tel:" + phoneNumber));
-//            // 启动拨号界面
-//            startActivity(intent);
-//        }
+        Read("");
+        if(compare(text,"打电话")||compare(text,"打个电话")){
+            // 声明要拨打的电话号码
+            String phoneNumber = "";
+            // 创建一个Intent对象
+            Intent intent = new Intent(Intent.ACTION_DIAL);
+            // 设置URI
+            intent.setData(Uri.parse("tel:" + phoneNumber));
+            // 启动拨号界面
+            startActivity(intent);
+        }
+        else if(compare(text,"同济")||compare(text,"同济大学")){
+            textView = new TextView(this);
+            textView.setText(text);
+            linearLayout.addView(textView);
+            content="同心同德，寄人寄事";
+            SpeechUtility.createUtility(MainActivity.this, SpeechConstant.APPID +"=56978643");
+            // 初始化合成对象
+            mTts = SpeechSynthesizer.createSynthesizer(MainActivity.this, mTtsInitListener);
+            if (mTts == null) {
+                MainActivity.this.showTip("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
+                return;
+            }
+            //设置参数
+            hcrsetParam();
+            //开始合成播放
+            int code = mTts.startSpeaking(content, mTtsListener);
+            if (code != ErrorCode.SUCCESS) {
+                showTip("语音合成失败,错误码: " + code);
+            }
+            //Read(content);
+        }
+        else if(compare(text,"你是谁")||compare(text,"介绍一下你自己")){
+            textView = new TextView(this);
+            textView.setText(text);
+            linearLayout.addView(textView);
+            content="我是在用户交互课程中被编写出来的，您的智能语音管家";
+            //开始合成播放
+            int code = mTts.startSpeaking(content, mTtsListener);
+            if (code != ErrorCode.SUCCESS) {
+                showTip("语音合成失败,错误码: " + code);
+            }
+        }
+        else if(compare(text,"同济大学怎么样")||compare(text,"同济大学怎样")){
+            textView = new TextView(this);
+            textView.setText(text);
+            linearLayout.addView(textView);
+            content="同舟共济，胸怀天下";
+            //开始合成播放
+            int code = mTts.startSpeaking(content, mTtsListener);
+            if (code != ErrorCode.SUCCESS) {
+                showTip("语音合成失败,错误码: " + code);
+            }
+        }
+        else if(compare(text,"用户交互技术是什么")||compare(text,"用户交互技术")||compare(text,"用户交互是什么")||compare(text,"什么是用户交互技术")){
+            textView = new TextView(this);
+            textView.setText(text);
+            linearLayout.addView(textView);
+            content="用户交互技术是指用于人机交互的各种技术，包括自然语言处理、语音识别、图像识别、手势识别等";
+            //开始合成播放
+            int code = mTts.startSpeaking(content, mTtsListener);
+            if (code != ErrorCode.SUCCESS) {
+                showTip("语音合成失败,错误码: " + code);
+            }
+        }
+        else if(compare(text,"怎么学用户交互")||compare(text,"怎么学好用户交互")){
+            textView = new TextView(this);
+            textView.setText(text);
+            linearLayout.addView(textView);
+            content="可以在同济大学听沈莹老师讲课，学习知识";
+            //开始合成播放
+            int code = mTts.startSpeaking(content, mTtsListener);
+            if (code != ErrorCode.SUCCESS) {
+                showTip("语音合成失败,错误码: " + code);
+            }
+        }
+        else if(compare(text,"打开短信")||compare(text,"短信")){
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setType("vnd.android-dir/mms-sms");
+            startActivity(intent);
+        }
+        else{
+            StringBuffer resultBuffer = new StringBuffer();
+            for (String key : mIatResults.keySet()) {
+                resultBuffer.append(mIatResults.get(key));
+            }
+            textView = new TextView(this);
+            textView.setText(text);
+            sendGptRequest(resultBuffer.toString());
+            linearLayout.addView(textView);
+        }
 
         // 打开短信界面
         //Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("sms:"));
@@ -243,19 +326,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         //
         //Intent intent = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
         //startActivityForResult(intent, 1);
-
-        //语音处理
-        StringBuffer resultBuffer = new StringBuffer();
-        for (String key : mIatResults.keySet()) {
-            resultBuffer.append(mIatResults.get(key));
-        }
-        textView = new TextView(this);
-        textView.setText(resultBuffer.toString());
-        sendGptRequest(resultBuffer.toString());
-        linearLayout.addView(textView);
-
-
-
     }
 
     /* 相似性判断*/
@@ -402,6 +472,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 JSONObject messageObject = jsonObject.getJSONArray("choices").getJSONObject(0).getJSONObject("message");
                                 String content = messageObject.getString("content");
 
+                                //语音朗读
+                                Read(content);
+                                //
+
                                 TextView gptResultView = new TextView(MainActivity.this);
                                 gptResultView.setText(content);
                                 linearLayout.addView(gptResultView);
@@ -470,7 +544,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mTts.setParameter(SpeechConstant.TTS_AUDIO_PATH, getExternalFilesDir(null) + "/msc/tts.pcm");
     }
 
-    String text = "富强、明主、文明、和谐、自由、平等、公正、法制、爱国、敬业、诚信、友善。";
+    String text = "";
     /**
      * 合成回调监听。
      */
@@ -513,25 +587,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     };
 
     private SpeechSynthesizer mTts;
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
 
+    public void Read(String str){
         //语言合成部分
         SpeechUtility.createUtility(MainActivity.this, SpeechConstant.APPID +"=56978643");
         // 初始化合成对象
-        mTts = SpeechSynthesizer.createSynthesizer(this, mTtsInitListener);
+        mTts = SpeechSynthesizer.createSynthesizer(MainActivity.this, mTtsInitListener);
         if (mTts == null) {
-            this.showTip("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
+            MainActivity.this.showTip("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
             return;
         }
         //设置参数
         hcrsetParam();
         //开始合成播放
-        int code = mTts.startSpeaking(text, mTtsListener);
+        int code = mTts.startSpeaking(str, mTtsListener);
         if (code != ErrorCode.SUCCESS) {
             showTip("语音合成失败,错误码: " + code);
         }
-        //语音合成部分
+    }
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -565,6 +642,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mIatDialog = new RecognizerDialog(MainActivity.this, mInitListener);
         mSharedPreferences = getSharedPreferences("ASR",
                 Activity.MODE_PRIVATE);
+
 
     }
 
