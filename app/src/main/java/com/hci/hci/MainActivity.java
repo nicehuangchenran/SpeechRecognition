@@ -75,6 +75,8 @@ import com.iflytek.cloud.SpeechConstant;
 import com.iflytek.cloud.SpeechUtility;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -127,12 +129,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ScrollView tvResult;//识别结果
     private Button btnStart;//开始识别
     private String resultType = "json";//结果内容数据格式
+    private List < Message > mMessages;
+    private RecyclerView mRecyclerView;
+    private MessageAdapter mAdapter;
 
     private List<PackageInfo> clockPackageInfos;//系统时钟软件
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
     private static final String API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String API_KEY = "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";
+    private static final String API_KEY = "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";
 
     private OkHttpClient client = new OkHttpClient();
 
@@ -159,8 +164,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         public void onResult(RecognizerResult results, boolean isLast) {
             if (!isLast){
                 printResult(results);//结果数据解析
-
-
             }
         }
 
@@ -170,7 +173,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         public void onError(SpeechError error) {
             showMsg(error.getPlainDescription(true));
         }
-
     };
 
     /**
@@ -225,6 +227,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         mIatResults.put(sn, text);
+        //语言合成部分
+        SpeechUtility.createUtility(MainActivity.this, SpeechConstant.APPID +"=56978643");
+        // 初始化合成对象
+        mTts = SpeechSynthesizer.createSynthesizer(this, mTtsInitListener);
+        if (mTts == null) {
+            this.showTip("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
+            return;
+        }
+        //设置参数
+        hcrsetParam();
+        //开始合成播放
+        int code = mTts.startSpeaking(text, mTtsListener);
+        if (code != ErrorCode.SUCCESS) {
+            showTip("语音合成失败,错误码: " + code);
+        }
+        //语音合成部分
 //        if(compare(text,"dial")){
 //            // 声明要拨打的电话号码
 //            String phoneNumber = "";
@@ -249,10 +267,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         for (String key : mIatResults.keySet()) {
             resultBuffer.append(mIatResults.get(key));
         }
-        textView = new TextView(this);
-        textView.setText(resultBuffer.toString());
+        mMessages.add(new Message(resultBuffer.toString(), true));
+        mAdapter.notifyItemInserted(mMessages.size() - 1);
+
         sendGptRequest(resultBuffer.toString());
-        linearLayout.addView(textView);
+
 
 
 
@@ -402,9 +421,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 JSONObject messageObject = jsonObject.getJSONArray("choices").getJSONObject(0).getJSONObject("message");
                                 String content = messageObject.getString("content");
 
-                                TextView gptResultView = new TextView(MainActivity.this);
-                                gptResultView.setText(content);
-                                linearLayout.addView(gptResultView);
+                                mMessages.add(new Message(content, false));
+                                mAdapter.notifyItemInserted(mMessages.size() - 1);
+
+
                             } catch (IOException | JSONException e) {
                                 e.printStackTrace();
                             }
@@ -470,7 +490,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mTts.setParameter(SpeechConstant.TTS_AUDIO_PATH, getExternalFilesDir(null) + "/msc/tts.pcm");
     }
 
-    String text = "富强、明主、文明、和谐、自由、平等、公正、法制、爱国、敬业、诚信、友善。";
     /**
      * 合成回调监听。
      */
@@ -516,22 +535,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
-        //语言合成部分
-        SpeechUtility.createUtility(MainActivity.this, SpeechConstant.APPID +"=56978643");
-        // 初始化合成对象
-        mTts = SpeechSynthesizer.createSynthesizer(this, mTtsInitListener);
-        if (mTts == null) {
-            this.showTip("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
-            return;
-        }
-        //设置参数
-        hcrsetParam();
-        //开始合成播放
-        int code = mTts.startSpeaking(text, mTtsListener);
-        if (code != ErrorCode.SUCCESS) {
-            showTip("语音合成失败,错误码: " + code);
-        }
-        //语音合成部分
+
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -553,8 +557,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         });
 
-        linearLayout = (LinearLayout) findViewById(R.id.linear_layout);
-        tvResult = findViewById(R.id.tv_result);
+
+        mRecyclerView = findViewById(R.id.recycler_view);
+        mMessages = new ArrayList < > ();
+        mAdapter = new MessageAdapter(mMessages);
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        mRecyclerView.setAdapter(mAdapter);
+
         btnStart = findViewById(R.id.btn_start);
         btnStart.setOnClickListener(this);//实现点击监听
 
@@ -567,8 +576,5 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Activity.MODE_PRIVATE);
 
     }
-
-
-
 
 }

@@ -84,23 +84,15 @@
             android:layout_margin="20dp"
             android:src="@drawable/main"/>
 
-        <ScrollView
-            android:id="@+id/tv_result"
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view"
             android:layout_width="match_parent"
             android:layout_height="190dp"
             android:textColor="#F1D3C9"
             android:textSize="20sp"
             android:layout_margin="20dp"
-            android:gravity="center"
-            >
-            <LinearLayout
-                android:id="@+id/linear_layout"
-                android:layout_width="match_parent"
-                android:layout_height="100sp"
-                android:orientation="vertical">
-            </LinearLayout>
+            android:gravity="center"/>
 
-        </ScrollView>
 
         <RelativeLayout
             android:layout_width="300dp"
