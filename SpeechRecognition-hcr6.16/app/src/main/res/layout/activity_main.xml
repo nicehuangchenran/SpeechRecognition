@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+                    <Button
+                        android:id="@+id/btn_intro"
+                        android:layout_width="50dp"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginTop="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginBottom="20dp"
+                        android:layout_height="50dp"
+                        android:background="@android:color/transparent" />
+                    <ImageView
+                        android:id="@+id/introduction"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"
+                        android:layout_alignParentLeft="true"
+                        android:layout_alignParentTop="true"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginTop="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginBottom="20dp"
+                        android:background="@color/white"
+                        android:src="@drawable/introduction" />
+            </RelativeLayout>
+            <RelativeLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+                <Button
+                    android:id="@+id/btn_list"
+                    android:layout_width="50dp"
+                    android:layout_marginStart="20dp"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginEnd="20dp"
+                    android:layout_marginBottom="20dp"
+                    android:layout_height="50dp"
+                    android:layout_alignParentRight="true"
+                    android:layout_alignParentTop="true"
+                    android:background="@android:color/transparent" />
+                    <ImageView
+                        android:id="@+id/list"
+                        android:layout_width="50dp"
+                        android:layout_height="50dp"
+                        android:layout_alignParentRight="true"
+                        android:layout_alignParentTop="true"
+                        android:layout_marginStart="20dp"
+                        android:layout_marginTop="20dp"
+                        android:layout_marginEnd="20dp"
+                        android:layout_marginBottom="20dp"
+                        android:background="@color/white"
+                        android:src="@drawable/list" />
+            </RelativeLayout>
+
+
+        </RelativeLayout>
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center">
+        <ImageView
+            android:id="@+id/img0"
+            android:layout_width="300dp"
+            android:layout_height="250dp"
+            android:background="@color/white"
+            android:layout_margin="20dp"
+            android:src="@drawable/main"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="190dp"
+            android:textColor="#F1D3C9"
+            android:textSize="20sp"
+            android:layout_margin="20dp"
+            android:gravity="center"/>
+
+        <RelativeLayout
+            android:layout_width="300dp"
+            android:layout_height="100dp"
+            >
+            <Button
+                android:id="@+id/btn_start"
+                android:layout_width="300dp"
+                android:layout_height="60dp"
+                android:layout_marginTop="20dp"
+                android:background="@android:color/transparent"
+                android:text="开始识别" />
+            <ImageView
+                android:id="@+id/img1"
+                android:layout_width="300dp"
+                android:layout_height="100dp"
+                android:src="@drawable/speak"
+                android:layout_alignParentBottom="true"/>
+        </RelativeLayout>
+    </LinearLayout>
+</LinearLayout>
+
