@@ -6,15 +6,18 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,6 +25,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.bumptech.glide.Glide;
 import com.iflytek.cloud.ErrorCode;
 import com.iflytek.cloud.InitListener;
 import com.iflytek.cloud.RecognizerResult;
@@ -34,6 +38,7 @@ import com.iflytek.cloud.ui.RecognizerDialogListener;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -109,8 +114,8 @@ import com.iflytek.cloud.msc.util.log.DebugLog;
 import java.util.Vector;
 
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
-
+public class MainActivity extends AppCompatActivity implements View.OnClickListener,CompoundButton.OnCheckedChangeListener{
+    private static int emo = 0;
     private static final String TAG = "MainActivity";
     private static int counter = 0;
     private SpeechRecognizer mIat;// 语音听写对象
@@ -129,15 +134,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private ScrollView tvResult;//识别结果
     private Button btnStart;//开始识别
     private String resultType = "json";//结果内容数据格式
-    private List < Message > mMessages;
+    private List<Message> mMessages;
     private RecyclerView mRecyclerView;
     private MessageAdapter mAdapter;
+    private Switch emotionSwitch;
+
+
 
     private List<PackageInfo> clockPackageInfos;//系统时钟软件
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
     private static final String API_URL = "https://api.openai.com/v1/chat/completions";
-    private static final String API_KEY = "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";
+    private static final String API_KEY = "Your API_Key here";
 
     private OkHttpClient client = new OkHttpClient();
 
@@ -162,7 +170,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private RecognizerDialogListener mRecognizerDialogListener = new RecognizerDialogListener() {
         public void onResult(RecognizerResult results, boolean isLast) {
-            if (!isLast){
+            if (!isLast) {
                 printResult(results);//结果数据解析
             }
         }
@@ -177,6 +185,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     /**
      * 提示消息
+     *
      * @param msg
      */
     private void showMsg(String msg) {
@@ -186,11 +195,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View v) {
-        if( null == mIat ){
+        if (null == mIat) {
             // 创建单例失败，与 21001 错误为同样原因，参考 http://bbs.xfyun.cn/forum.php?mod=viewthread&tid=9688
-            showMsg( "创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化" );
+            showMsg("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
             return;
         }
+        ImageView imageView = (ImageView) findViewById(R.id.img0);
+        // Glide.with(this).load(R.drawable.giphy).into(imageView);
+
         mIatResults.clear();//清除数据
         setParam(); // 设置参数
         mIatDialog.setListener(mRecognizerDialogListener);//设置监听
@@ -227,22 +239,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         mIatResults.put(sn, text);
-        //语言合成部分
-        SpeechUtility.createUtility(MainActivity.this, SpeechConstant.APPID +"=56978643");
-        // 初始化合成对象
-        mTts = SpeechSynthesizer.createSynthesizer(this, mTtsInitListener);
-        if (mTts == null) {
-            this.showTip("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
-            return;
-        }
-        //设置参数
-        hcrsetParam();
-        //开始合成播放
-        int code = mTts.startSpeaking(text, mTtsListener);
-        if (code != ErrorCode.SUCCESS) {
-            showTip("语音合成失败,错误码: " + code);
-        }
-        //语音合成部分
 //        if(compare(text,"dial")){
 //            // 声明要拨打的电话号码
 //            String phoneNumber = "";
@@ -270,16 +266,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mMessages.add(new Message(resultBuffer.toString(), true));
         mAdapter.notifyItemInserted(mMessages.size() - 1);
 
+        getAudioEmotion();
         sendGptRequest(resultBuffer.toString());
-
-
-
-
     }
 
     /* 相似性判断*/
     public boolean compare(String sn, String command) {
-        if (sn.endsWith(".")){
+        if (sn.endsWith(".")) {
             sn = sn.substring(0, sn.length() - 1);
         }
         int n = sn.length(), m = command.length();
@@ -313,8 +306,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         return true;
     }
-
-
 
 
     /**
@@ -355,9 +346,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // 设置标点符号,设置为"0"返回结果无标点,设置为"1"返回结果有标点
         mIat.setParameter(SpeechConstant.ASR_PTT, mSharedPreferences.getString("iat_punc_preference", "1"));
 
-        // 设置音频保存路径，保存音频格式支持pcm、wav，设置路径为sd卡请注意WRITE_EXTERNAL_STORAGE权限
         mIat.setParameter(SpeechConstant.AUDIO_FORMAT, "wav");
-        mIat.setParameter(SpeechConstant.ASR_AUDIO_PATH, Environment.getExternalStorageDirectory() + "/msc/iat.wav");
+        mIat.setParameter(SpeechConstant.ASR_AUDIO_PATH, getFilesDir() + "/msc/iat.wav");
     }
 
     /**
@@ -381,19 +371,64 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (!toApplyList.isEmpty()) {
             ActivityCompat.requestPermissions(this, toApplyList.toArray(tmpList), 123);
         }
-
-
     }
+
+    public void getAudioEmotion() {
+        // 定义音频文件的路径
+        String audioPath = getFilesDir() + "/msc/iat.wav";
+        String result;
+        // 创建OkHttpClient对象
+        OkHttpClient client = new OkHttpClient();
+
+        // 创建MultipartBody.Builder用于构建form-data请求
+        MultipartBody.Builder requestBodyBuilder = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("audio", "iat.wav",
+                        RequestBody.create(MediaType.parse("audio/wav"), new File(audioPath)));
+
+        // 创建Request对象
+        Request request = new Request.Builder()
+                .url("http://111.231.168.12:8000/")
+                .post(requestBodyBuilder.build())
+                .build();
+
+        // 发送请求并处理响应
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                // 请求失败处理
+                e.printStackTrace();
+                // mMessages.add(new Message(e.toString(), false));
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    // 请求成功处理
+                    String responseBody = response.body().string();
+                    mMessages.add(new Message(responseBody, false));
+                } else {
+                    System.out.println("Error");
+                }
+            }
+        });
+    }
+
 
     private void sendGptRequest(String prompt) {
         MediaType JSON = MediaType.get("application/json; charset=utf-8");
+        // 根据prompt的第一个汉字的不同构造不同的json
+        // 获取第一个汉字
+        char firstChar = prompt.length() > 0 ? prompt.charAt(0) : '\0';
+        String modifiedPrompt = prompt;
+        ImageView imageView = (ImageView) findViewById(R.id.img0);
+
         String json = "{"
                 + "\"model\":\"gpt-3.5-turbo\","
-                + "\"messages\":[{\"role\":\"user\", \"content\":\"" + prompt + "\"}],"
-                + "\"max_tokens\":640,"
+                + "\"messages\":[{\"role\":\"user\", \"content\":\"" + modifiedPrompt + "\"}],"
+                + "\"max_tokens\":2000,"
                 + "\"temperature\":0.5"
                 + "}";
-
         RequestBody body = RequestBody.create(json, JSON);
         Request request = new Request.Builder()
                 .url(API_URL)
@@ -423,6 +458,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                                 mMessages.add(new Message(content, false));
                                 mAdapter.notifyItemInserted(mMessages.size() - 1);
+                                //语音朗读
+                                Read(content);
 
 
                             } catch (IOException | JSONException e) {
@@ -434,7 +471,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         });
     }
-//    /**
+
+    //    /**
 //     * 权限申请回调，可以作进一步处理
 //     *
 //     * @param requestCode
@@ -490,6 +528,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mTts.setParameter(SpeechConstant.TTS_AUDIO_PATH, getExternalFilesDir(null) + "/msc/tts.pcm");
     }
 
+    String text = "";
     /**
      * 合成回调监听。
      */
@@ -532,14 +571,49 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     };
 
     private SpeechSynthesizer mTts;
+    public void Read(String str){
+        //语言合成部分
+        SpeechUtility.createUtility(MainActivity.this, SpeechConstant.APPID +"=56978643");
+        // 初始化合成对象
+        mTts = SpeechSynthesizer.createSynthesizer(MainActivity.this, mTtsInitListener);
+        if (mTts == null) {
+            MainActivity.this.showTip("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
+            return;
+        }
+        //设置参数
+        hcrsetParam();
+        //开始合成播放
+        int code = mTts.startSpeaking(str, mTtsListener);
+        if (code != ErrorCode.SUCCESS) {
+            showTip("语音合成失败,错误码: " + code);
+        }
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
 
+        //语言合成部分
+        SpeechUtility.createUtility(MainActivity.this, SpeechConstant.APPID +"=56978643");
+        // 初始化合成对象
+        mTts = SpeechSynthesizer.createSynthesizer(this, mTtsInitListener);
+        if (mTts == null) {
+            this.showTip("创建对象失败，请确认 libmsc.so 放置正确，且有调用 createUtility 进行初始化");
+            return;
+        }
+        //设置参数
+        hcrsetParam();
+        //开始合成播放
+        int code = mTts.startSpeaking(text, mTtsListener);
+        if (code != ErrorCode.SUCCESS) {
+            showTip("语音合成失败,错误码: " + code);
+        }
+        //语音合成部分
 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Button btn_intro=findViewById(R.id.btn_intro);
+        emotionSwitch = (Switch) findViewById(R.id.switch1);
+        emotionSwitch.setOnCheckedChangeListener(this);
         btn_intro.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v){
@@ -553,7 +627,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btn_list.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v){
-               Toast.makeText(MainActivity.this,"小组成员：焦骜、黄晨冉、赵一婷",Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this,"小组成员：焦骜、黄晨冉、林鑫宇",Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -575,6 +649,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mSharedPreferences = getSharedPreferences("ASR",
                 Activity.MODE_PRIVATE);
 
+
+    }
+    @Override
+    public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+
+        // emotionSwitch.setOnCheckedChangeListener(this);
+        ImageView imageView = (ImageView) findViewById(R.id.img0);
+        if (buttonView.getId() == R.id.switch1) {
+            if (isChecked) {
+                // Switch打开时的操作
+                emo = 1;
+                imageView.setImageResource(R.drawable.calm);
+
+            } else {
+                // Switch关闭时的操作
+                emo = 0;
+                imageView.setImageResource(R.drawable.main);
+            }
+        }
     }
 
 }
